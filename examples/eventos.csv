@@ -1,0 +1,3 @@
+id,start,end,duration,classes,score,file,export_mode
+1,12.4,20.8,8.4,person,0.91,event_001.mp4,stream-copy
+2,48.1,55.0,6.9,car;person,0.84,event_002.mp4,stream-copy

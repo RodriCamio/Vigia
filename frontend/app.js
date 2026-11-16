@@ -1,0 +1,35 @@
+const $ = s => document.querySelector(s);
+const state = {video:null, rois:[], drawing:null, job:null};
+const fields = [
+ ['fps_analysis','FPS de análisis','number',3,1,10,.5],['analysis_width','Ancho de análisis','number',640,160,1280,32],
+ ['min_blob_area','Área mínima de blob','number',300,10,100000,10],['motion_threshold','Umbral de movimiento','number',25,1,255,1],
+ ['yolo_conf','Confianza YOLO','number',.4,.05,.95,.05],['yolo_iou','IOU YOLO','number',.5,.1,.95,.05],
+ ['padding_before','Padding anterior (s)','number',2,0,10,.5],['padding_after','Padding posterior (s)','number',2,0,10,.5],
+ ['merge_gap','Fusión entre eventos (s)','number',3,0,10,.5],['min_event_duration','Duración mínima (s)','number',1,.2,5,.2],
+ ['output_mode','Salida','select','clips'],['exact_reencode','Corte exacto (más lento)','checkbox',false]
+];
+$('#controls').innerHTML=fields.map(([id,label,type,val,min,max,step])=>`<div class="control"><label for="${id}">${label}</label>${type==='select'?`<select id="${id}"><option value="clips">Clips separados</option><option value="concat">Clips + concatenado</option></select>`:`<input id="${id}" type="${type}" ${type==='checkbox'?'':`value="${val}" min="${min}" max="${max}" step="${step}"`} ${type==='checkbox'&&val?'checked':''}>`}</div>`).join('');
+const classNames={person:'Persona',car:'Auto',truck:'Camión',motorcycle:'Moto',bicycle:'Bicicleta',dog:'Perro',cat:'Gato'};
+$('#classes').innerHTML=Object.entries(classNames).map(([v,l])=>`<label><input type="checkbox" name="class" value="${v}" ${['person','car','truck','motorcycle','bicycle'].includes(v)?'checked':''}> ${l}</label>`).join('');
+
+function show(id, step){$(id).classList.remove('hidden');document.querySelectorAll('#steps span').forEach((x,i)=>x.classList.toggle('active',i<=step));}
+function config(){let c={}; for(const [id,,type] of fields){const el=$('#'+id);c[id]=type==='checkbox'?el.checked:type==='number'?Number(el.value):el.value} c.classes=[...document.querySelectorAll('[name=class]:checked')].map(x=>x.value);return c}
+async function upload(file){
+ const fd=new FormData();fd.append('file',file);$('#metadata').textContent='Validando y extrayendo frame…';
+ try{const r=await fetch('/api/videos',{method:'POST',body:fd});if(!r.ok)throw new Error(await r.text());state.video=await r.json();const m=state.video.metadata;$('#metadata').innerHTML=`<div class="meta"><b>${file.name}</b><span>${m.width}×${m.height}</span><span>${m.duration.toFixed(1)} s</span><span>${m.fps.toFixed(2)} fps${m.vfr?' · VFR':''}</span><span>${m.codec}</span></div>`;$('#frame').src=state.video.reference_url+'?v='+Date.now();show('#roi',1);show('#config',2)}catch(e){$('#metadata').innerHTML=`<p class="error">${e.message}</p>`}
+}
+$('#file').onchange=e=>e.target.files[0]&&upload(e.target.files[0]);
+const drop=$('.drop');drop.ondragover=e=>{e.preventDefault()};drop.ondrop=e=>{e.preventDefault();e.dataTransfer.files[0]&&upload(e.dataTransfer.files[0])};
+const canvas=$('#canvas'),ctx=canvas.getContext('2d');
+$('#frame').onload=()=>{canvas.width=$('#frame').clientWidth;canvas.height=$('#frame').clientHeight;draw()};
+window.onresize=()=>{if(!state.video)return;canvas.width=$('#frame').clientWidth;canvas.height=$('#frame').clientHeight;draw()};
+function pos(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height}}
+function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.lineWidth=2;ctx.strokeStyle='#22d3ee';ctx.fillStyle='#22d3ee33';for(const r of state.rois){ctx.fillRect(r.x*canvas.width,r.y*canvas.height,r.width*canvas.width,r.height*canvas.height);ctx.strokeRect(r.x*canvas.width,r.y*canvas.height,r.width*canvas.width,r.height*canvas.height)}if(state.drawing){const a=state.drawing.a,b=state.drawing.b;ctx.strokeStyle='#f97316';ctx.strokeRect(a.x*canvas.width,a.y*canvas.height,(b.x-a.x)*canvas.width,(b.y-a.y)*canvas.height)}}
+canvas.onpointerdown=e=>{canvas.setPointerCapture(e.pointerId);state.drawing={a:pos(e),b:pos(e)}};canvas.onpointermove=e=>{if(state.drawing){state.drawing.b=pos(e);draw()}};canvas.onpointerup=e=>{if(!state.drawing)return;let{a,b}=state.drawing;const r={x:Math.max(0,Math.min(a.x,b.x)),y:Math.max(0,Math.min(a.y,b.y)),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y)};if(r.width>.01&&r.height>.01)state.rois.push(r);state.drawing=null;draw()};
+$('#clear').onclick=()=>{state.rois=[];draw()};
+async function launch(url,extra={}){if(!state.video||!state.rois.length){alert('Cargá un video y dibujá al menos una ROI.');return}const body={video_id:state.video.video_id,rois:state.rois,config:config(),...extra};const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());return(await r.json()).job_id}
+$('#preview').onclick=async()=>{try{$('#preview-result').textContent='Procesando previsualización…';const id=await launch('/api/preview',{seconds:10});watch(id,true)}catch(e){$('#preview-result').textContent=e.message}};
+$('#start').onclick=async()=>{try{state.job=await launch('/api/jobs');show('#process',3);watch(state.job,false)}catch(e){alert(e.message)}};
+function watch(id,preview){const proto=location.protocol==='https:'?'wss':'ws';const ws=new WebSocket(`${proto}://${location.host}/api/jobs/${id}/ws`);ws.onmessage=e=>{const s=JSON.parse(e.data);if(preview){if(s.phase==='done')$('#preview-result').textContent=`Vista previa: ${s.result.events.length} evento(s), ${s.result.stats.candidates} candidatos de movimiento.`;else if(s.phase==='error')$('#preview-result').textContent='Error: '+s.error;return}$('#progress').value=s.progress||0;$('#status').textContent=`${s.phase} · ${Math.round((s.progress||0)*100)}% · muestras ${s.sampled||0} · candidatos ${s.candidates||0} · hits ${s.hits||0}${s.eta?' · ETA '+Math.round(s.eta)+'s':''}`;$('#logs').textContent=(s.logs||[]).join('\n');if(s.phase==='done')renderResults(s);if(s.phase==='error')$('#status').textContent='Error: '+s.error}}
+$('#cancel').onclick=()=>state.job&&fetch('/api/jobs/'+state.job,{method:'DELETE'});
+function renderResults(s){show('#results',4);const result=s.result, folder=s.output_dir, duration=result.duration||1;$('#timeline').innerHTML='';$('#events').innerHTML='';for(const ev of result.events){const block=document.createElement('div');block.className='event-block';block.style.left=(ev.start/duration*100)+'%';block.style.width=((ev.end-ev.start)/duration*100)+'%';block.title=`${ev.start}s–${ev.end}s`;block.onclick=()=>{$('#player').src=`/api/results/${folder}/${ev.file}`};$('#timeline').append(block);$('#events').insertAdjacentHTML('beforeend',`<tr><td>${ev.id}</td><td>${ev.start.toFixed(2)}</td><td>${ev.end.toFixed(2)}</td><td>${ev.duration.toFixed(2)}</td><td>${ev.classes.join(', ')}</td><td>${ev.score.toFixed(2)}</td></tr>`)}$('#downloads').innerHTML=`<a href="/api/results/${folder}/eventos.csv" download><button>CSV</button></a><a href="/api/results/${folder}/metadata.json" download><button>JSON</button></a><a href="/api/results/${folder}/resultados.zip" download><button class="primary">Descargar ZIP</button></a>`}

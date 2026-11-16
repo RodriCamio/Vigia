@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Detector local de eventos</title><link rel="stylesheet" href="/styles.css"></head>
+<body><main>
+  <header><h1>Detector local de eventos</h1><p>Video y análisis permanecen en esta máquina.</p></header>
+  <nav id="steps"><span class="active">1 Carga</span><span>2 ROI</span><span>3 Configuración</span><span>4 Proceso</span><span>5 Resultados</span></nav>
+  <section id="upload" class="panel"><h2>Cargar video</h2><label class="drop">Arrastrá un video o <input id="file" type="file" accept=".mp4,.mkv,.avi,.mov,.ts"></label><div id="metadata"></div></section>
+  <section id="roi" class="panel hidden"><h2>Regiones de interés</h2><p>Dibujá uno o varios rectángulos. Hacé clic dentro de uno para seleccionarlo y usá “Eliminar”.</p><div class="canvas-wrap"><img id="frame"><canvas id="canvas"></canvas></div><div class="actions"><button id="clear">Eliminar todas</button><button id="preview">Previsualizar primeros 10 s</button></div><div id="preview-result"></div></section>
+  <section id="config" class="panel hidden"><h2>Configuración</h2><div id="controls" class="grid"></div><fieldset><legend>Clases</legend><div id="classes"></div></fieldset><div class="actions"><button id="start" class="primary">Procesar video</button></div></section>
+  <section id="process" class="panel hidden"><h2>Procesamiento</h2><progress id="progress" max="1" value="0"></progress><p id="status"></p><pre id="logs"></pre><button id="cancel">Cancelar</button></section>
+  <section id="results" class="panel hidden"><h2>Resultados</h2><div id="timeline"></div><div class="actions" id="downloads"></div><video id="player" controls></video><table><thead><tr><th>#</th><th>Inicio</th><th>Fin</th><th>Duración</th><th>Clases</th><th>Score</th></tr></thead><tbody id="events"></tbody></table></section>
+</main><script src="/app.js"></script></body></html>

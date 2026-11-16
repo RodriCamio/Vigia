@@ -1,0 +1,13 @@
+# Use Python 3.10-3.13. PyAV 14 has no CPython 3.14 wheel and its source
+# build is incompatible with several newer system FFmpeg releases.
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+python-multipart>=0.0.12
+av>=16,<17
+numpy>=1.26,<3
+opencv-python-headless>=4.10,<5
+ultralytics>=8.3,<9
+torch>=2.2
+pydantic>=2.8,<3
+pytest>=8,<9
+httpx>=0.27,<1

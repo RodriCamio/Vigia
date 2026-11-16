@@ -1,0 +1,5 @@
+{
+  "source": "camara_entrada.mp4",
+  "video": {"duration": 3600.0, "width": 1920, "height": 1080, "fps": 30.0, "codec": "h264", "vfr": false},
+  "events": [{"id": 1, "start": 12.4, "end": 20.8, "duration": 8.4, "classes": ["person"], "score": 0.91, "file": "event_001.mp4"}]
+}

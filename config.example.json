@@ -1,0 +1,18 @@
+{
+  "fps_analysis": 3,
+  "analysis_width": 640,
+  "mog2_history": 500,
+  "var_threshold": 16,
+  "min_blob_area": 300,
+  "motion_threshold": 25,
+  "yolo_conf": 0.4,
+  "yolo_iou": 0.5,
+  "classes": ["person", "car", "truck", "motorcycle", "bicycle"],
+  "padding_before": 2,
+  "padding_after": 2,
+  "merge_gap": 3,
+  "min_event_duration": 1,
+  "output_mode": "clips",
+  "exact_reencode": false,
+  "model_path": "models/yolo11n.pt"
+}
